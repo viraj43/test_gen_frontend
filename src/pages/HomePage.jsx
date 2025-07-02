@@ -68,7 +68,7 @@ const HomePage = () => {
 
   const checkConnectionStatus = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/sheets/status', {
+      const response = await fetch('https://test-gen-backend.onrender.com/api/sheets/status', {
         credentials: 'include'
       });
 
@@ -86,7 +86,7 @@ const HomePage = () => {
 
   const loadAvailableSheets = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/sheets/sheets?spreadsheetId=${selectedSpreadsheet.id}`, {
+      const response = await fetch(`https://test-gen-backend.onrender.com/api/sheets/sheets?spreadsheetId=${selectedSpreadsheet.id}`, {
         credentials: 'include'
       });
 
@@ -101,7 +101,7 @@ const HomePage = () => {
 
   const loadExistingTestCases = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/sheets/test-cases?spreadsheetId=${selectedSpreadsheet.id}&sheetName=${encodeURIComponent(selectedSheet)}`, {
+      const response = await fetch(`https://test-gen-backend.onrender.com/api/sheets/test-cases?spreadsheetId=${selectedSpreadsheet.id}&sheetName=${encodeURIComponent(selectedSheet)}`, {
         credentials: 'include'
       });
 
@@ -119,7 +119,7 @@ const HomePage = () => {
     setConnectionStatus('Connecting to Google Sheets...');
 
     try {
-      const response = await fetch('http://localhost:5000/api/sheets/auth-url', {
+      const response = await fetch('https://test-gen-backend.onrender.com/api/sheets/auth-url', {
         credentials: 'include'
       });
 
@@ -207,7 +207,7 @@ const HomePage = () => {
 
     try {
       // FIXED: Updated to use the new endpoint
-      const response = await fetch('http://localhost:5000/api/sheets/generate', {
+      const response = await fetch('https://test-gen-backend.onrender.com/api/sheets/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -290,7 +290,7 @@ const HomePage = () => {
     setIsAnalyzing(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/sheets/analyze', {
+      const response = await fetch('https://test-gen-backend.onrender.com/api/sheets/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -333,7 +333,7 @@ const HomePage = () => {
     setIsModifying(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/sheets/modify', {
+      const response = await fetch('https://test-gen-backend.onrender.com/api/sheets/modify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -383,7 +383,7 @@ const HomePage = () => {
     setPromptResult(null);
 
     try {
-      const response = await fetch('http://localhost:5000/api/sheets/custom-prompt', {
+      const response = await fetch('https://test-gen-backend.onrender.com/api/sheets/custom-prompt', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

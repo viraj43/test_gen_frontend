@@ -24,7 +24,7 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch('http://localhost:5000/auth/me', {
+      const response = await fetch('https://test-gen-backend.onrender.com/auth/me', {
         method: 'GET',
         credentials: 'include',
       });
@@ -48,7 +48,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await fetch('http://localhost:5000/auth/login', {
+      const response = await fetch('https://test-gen-backend.onrender.com/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -76,7 +76,7 @@ export const AuthProvider = ({ children }) => {
 
   const signup = async (email, username, password) => {
     try {
-      const response = await fetch('http://localhost:5000/auth/signup', {
+      const response = await fetch('https://test-gen-backend.onrender.com/auth/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -104,7 +104,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await fetch('http://localhost:5000/auth/logout', {
+      await fetch('https://test-gen-backend.onrender.com/auth/logout', {
         method: 'POST',
         credentials: 'include',
       });
