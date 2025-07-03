@@ -1,3 +1,4 @@
+// AuthContext.js - Completely browser-safe version
 import { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext();
@@ -15,12 +16,29 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // API base URL - make this configurable
-  const API_BASE_URL = process.env.NODE_ENV === 'production' 
-    ? 'https://test-gen-backend.onrender.com' 
-    : 'http://localhost:3000';
+  // 🔧 SIMPLE APPROACH: Hard-coded URLs based on hostname
+  const getApiUrl = () => {
+    const hostname = window.location.hostname;
+    
+    // If we're on localhost or local network, use local backend
+    if (hostname === 'localhost' || 
+        hostname === '127.0.0.1' || 
+        hostname.startsWith('192.168.') ||
+        hostname.startsWith('10.') ||
+        hostname.startsWith('172.')) {
+      return 'http://localhost:5000'; // Your local backend
+    }
+    
+    // If we're on the production domain, use production backend
+    return 'https://test-gen-backend.onrender.com';
+  };
 
-  console.log('🌐 AuthContext initialized with API URL:', API_BASE_URL);
+  const API_BASE_URL = getApiUrl();
+
+  console.log('🌐 AuthContext initialized');
+  console.log('🔧 Current hostname:', window.location.hostname);
+  console.log('🎯 API URL:', API_BASE_URL);
+  console.log('📍 Frontend URL:', window.location.origin);
 
   // Check if user is authenticated on app load
   useEffect(() => {
@@ -29,6 +47,7 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async () => {
     console.log('🔍 Checking authentication status...');
+    console.log('🎯 Making request to:', `${API_BASE_URL}/auth/me`);
     
     try {
       const response = await fetch(`${API_BASE_URL}/auth/me`, {
@@ -37,8 +56,7 @@ export const AuthProvider = ({ children }) => {
       });
 
       console.log('📊 Auth check response status:', response.status);
-      console.log('📋 Auth check response headers:', [...response.headers.entries()]);
-
+      
       if (response.ok) {
         const userData = await response.json();
         console.log('✅ Authentication successful:', userData);
@@ -46,8 +64,6 @@ export const AuthProvider = ({ children }) => {
         setIsAuthenticated(true);
       } else {
         console.log('❌ Not authenticated, status:', response.status);
-        const errorText = await response.text();
-        console.log('❌ Error response:', errorText);
         setUser(null);
         setIsAuthenticated(false);
       }
@@ -58,11 +74,13 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setIsLoading(false);
       console.log('🏁 Auth check completed');
+      console.log('🍪 Current cookies:', document.cookie);
     }
   };
 
   const login = async (email, password) => {
     console.log('🔐 Attempting login for:', email);
+    console.log('🎯 Making request to:', `${API_BASE_URL}/auth/login`);
     
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -75,19 +93,31 @@ export const AuthProvider = ({ children }) => {
       });
 
       console.log('📊 Login response status:', response.status);
-      console.log('📋 Login response headers:', [...response.headers.entries()]);
+      console.log('📋 Response headers:');
+      for (let [key, value] of response.headers.entries()) {
+        console.log(`  ${key}: ${value}`);
+      }
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.log('❌ Login failed with error:', errorData);
+        console.log('❌ Login failed:', errorData);
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
       const userData = await response.json();
       console.log('✅ Login successful:', userData);
       
-      // Check if cookies are set after login
-      console.log('🍪 Browser cookies after login:', document.cookie);
+      // Wait a moment then check cookies
+      setTimeout(() => {
+        console.log('🍪 Cookies after login:', document.cookie);
+        const hasJwtCookie = document.cookie.includes('jwt=');
+        console.log('🔑 JWT cookie found:', hasJwtCookie ? '✅ YES' : '❌ NO');
+        
+        if (!hasJwtCookie) {
+          console.warn('⚠️ WARNING: Login successful but no JWT cookie in browser!');
+          console.log('🔍 Check browser dev tools → Application → Cookies');
+        }
+      }, 1000);
       
       setUser(userData);
       setIsAuthenticated(true);
@@ -101,6 +131,7 @@ export const AuthProvider = ({ children }) => {
 
   const signup = async (email, username, password) => {
     console.log('📝 Attempting signup for:', email);
+    console.log('🎯 Making request to:', `${API_BASE_URL}/auth/signup`);
     
     try {
       const response = await fetch(`${API_BASE_URL}/auth/signup`, {
@@ -113,19 +144,22 @@ export const AuthProvider = ({ children }) => {
       });
 
       console.log('📊 Signup response status:', response.status);
-      console.log('📋 Signup response headers:', [...response.headers.entries()]);
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.log('❌ Signup failed with error:', errorData);
+        console.log('❌ Signup failed:', errorData);
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
       const userData = await response.json();
       console.log('✅ Signup successful:', userData);
       
-      // Check if cookies are set after signup
-      console.log('🍪 Browser cookies after signup:', document.cookie);
+      // Check cookies after signup
+      setTimeout(() => {
+        console.log('🍪 Cookies after signup:', document.cookie);
+        const hasJwtCookie = document.cookie.includes('jwt=');
+        console.log('🔑 JWT cookie found:', hasJwtCookie ? '✅ YES' : '❌ NO');
+      }, 1000);
       
       setUser(userData);
       setIsAuthenticated(true);
@@ -143,7 +177,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/logout`, {
         method: 'POST',
-        credentials: 'include', // Include cookies for logout
+        credentials: 'include',
       });
       
       console.log('📊 Logout response status:', response.status);
@@ -151,36 +185,57 @@ export const AuthProvider = ({ children }) => {
       if (response.ok) {
         console.log('✅ Logout successful');
       } else {
-        console.log('⚠️ Logout request failed, but clearing local state anyway');
+        console.log('⚠️ Logout request failed, clearing state anyway');
       }
     } catch (error) {
       console.error('❌ Logout request failed:', error);
     } finally {
-      // Clear state regardless of API call success
       setUser(null);
       setIsAuthenticated(false);
-      console.log('🧹 Local auth state cleared');
-      console.log('🍪 Browser cookies after logout:', document.cookie);
+      console.log('🧹 Auth state cleared');
+      console.log('🍪 Cookies after logout:', document.cookie);
     }
   };
 
-  // Helper function to manually refresh auth state
+  // Helper functions
   const refreshAuth = async () => {
     setIsLoading(true);
     await checkAuthStatus();
   };
 
-  // Debug function to check current state
   const debugAuth = () => {
-    console.log('=== AUTH DEBUG INFO ===');
-    console.log('API Base URL:', API_BASE_URL);
-    console.log('Current user:', user);
-    console.log('Is authenticated:', isAuthenticated);
-    console.log('Is loading:', isLoading);
-    console.log('Browser cookies:', document.cookie);
-    console.log('Current domain:', window.location.hostname);
-    console.log('Current protocol:', window.location.protocol);
-    console.log('======================');
+    console.log('=== 🔍 AUTH DEBUG INFO ===');
+    console.log('🎯 API URL:', API_BASE_URL);
+    console.log('🌐 Frontend:', window.location.origin);
+    console.log('👤 User:', user);
+    console.log('🔐 Authenticated:', isAuthenticated);
+    console.log('⏳ Loading:', isLoading);
+    console.log('🍪 Cookies:', document.cookie || 'None');
+    console.log('🔑 Has JWT:', document.cookie.includes('jwt=') ? 'YES' : 'NO');
+    console.log('========================');
+  };
+
+  const testConnection = async () => {
+    console.log('🧪 Testing backend connection...');
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/health`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Backend connection successful:', data);
+        return { success: true, data };
+      } else {
+        console.log('❌ Backend returned error:', response.status);
+        return { success: false, status: response.status };
+      }
+    } catch (error) {
+      console.error('❌ Backend connection failed:', error);
+      return { success: false, error: error.message };
+    }
   };
 
   const value = {
@@ -192,13 +247,114 @@ export const AuthProvider = ({ children }) => {
     logout,
     checkAuthStatus,
     refreshAuth,
-    debugAuth, // Add this for debugging
-    API_BASE_URL // Expose for debugging
+    debugAuth,
+    testConnection,
+    API_BASE_URL
   };
 
   return (
     <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
+  );
+};
+
+// Test component to verify everything works
+export const AuthQuickTest = () => {
+  const { 
+    debugAuth, 
+    testConnection, 
+    login, 
+    user, 
+    isAuthenticated, 
+    API_BASE_URL 
+  } = useAuth();
+  
+  const [credentials, setCredentials] = useState({
+    email: 'viraj@gmail.com',
+    password: 'password123'
+  });
+
+  const runTest = async () => {
+    console.log('🚀 Running quick auth test...');
+    
+    // Step 1: Debug current state
+    debugAuth();
+    
+    // Step 2: Test backend connection
+    const connectionResult = await testConnection();
+    if (!connectionResult.success) {
+      console.error('❌ Cannot connect to backend');
+      return;
+    }
+    
+    // Step 3: Try login
+    console.log('🔐 Testing login...');
+    const loginResult = await login(credentials.email, credentials.password);
+    console.log('Login result:', loginResult);
+  };
+
+  return (
+    <div style={{ 
+      padding: '20px', 
+      border: '2px solid #e11d48', 
+      borderRadius: '8px', 
+      margin: '20px',
+      backgroundColor: '#fef2f2'
+    }}>
+      <h3 style={{ color: '#be123c', margin: '0 0 15px 0' }}>
+        🧪 Auth Quick Test
+      </h3>
+      
+      <div style={{ marginBottom: '15px', fontSize: '14px' }}>
+        <div><strong>API URL:</strong> {API_BASE_URL}</div>
+        <div><strong>Status:</strong> {isAuthenticated ? '✅ Authenticated' : '❌ Not Authenticated'}</div>
+        {user && <div><strong>User:</strong> {user.email}</div>}
+      </div>
+
+      <div style={{ marginBottom: '15px' }}>
+        <input
+          type="email"
+          placeholder="Email"
+          value={credentials.email}
+          onChange={(e) => setCredentials({...credentials, email: e.target.value})}
+          style={{ margin: '5px', padding: '8px', width: '200px' }}
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={credentials.password}
+          onChange={(e) => setCredentials({...credentials, password: e.target.value})}
+          style={{ margin: '5px', padding: '8px', width: '200px' }}
+        />
+      </div>
+      
+      <button 
+        onClick={runTest}
+        style={{ 
+          padding: '10px 20px', 
+          backgroundColor: '#dc2626', 
+          color: 'white', 
+          border: 'none', 
+          borderRadius: '5px',
+          marginRight: '10px'
+        }}
+      >
+        🚀 Run Full Test
+      </button>
+      
+      <button 
+        onClick={debugAuth}
+        style={{ 
+          padding: '10px 20px', 
+          backgroundColor: '#6b7280', 
+          color: 'white', 
+          border: 'none', 
+          borderRadius: '5px'
+        }}
+      >
+        🔍 Debug Only
+      </button>
+    </div>
   );
 };

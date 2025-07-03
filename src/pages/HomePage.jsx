@@ -1,8 +1,38 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 const HomePage = () => {
-  const { user } = useAuth();
+  const { user, API_BASE_URL } = useAuth(); // Get API URL from AuthContext
+  
+  // 🔧 FLEXIBLE: Use the same API URL logic as AuthContext
+  const getApiUrl = () => {
+    const hostname = window.location.hostname;
+    
+    // If we're on localhost or local network, use local backend
+    if (hostname === 'localhost' || 
+        hostname === '127.0.0.1' || 
+        hostname.startsWith('192.168.') ||
+        hostname.startsWith('10.') ||
+        hostname.startsWith('172.')) {
+      return 'http://localhost:3000'; // Your local backend
+    }
+    
+    // If we're on the production domain, use production backend
+    return 'https://test-gen-backend.onrender.com';
+  };
+
+  // Use API URL from AuthContext if available, otherwise determine it
+  const BACKEND_URL = API_BASE_URL || getApiUrl();
+
+  // Add debug logging
+  useEffect(() => {
+    console.log('🏠 HomePage initialized');
+    console.log('🌐 Frontend URL:', window.location.origin);
+    console.log('🎯 Backend URL:', BACKEND_URL);
+    console.log('👤 User:', user);
+  }, [BACKEND_URL, user]);
+
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -16,7 +46,7 @@ const HomePage = () => {
   const [selectedSheet, setSelectedSheet] = useState('');
   const [activeTab, setActiveTab] = useState('generate'); // 'generate', 'analyze', 'modify', 'arrange'
 
-  // UPDATED: Enhanced form data for test case generation with options
+  // Enhanced form data for test case generation with options
   const [testCaseForm, setTestCaseForm] = useState({
     module: '',
     summary: '',
@@ -38,7 +68,7 @@ const HomePage = () => {
   const [customPrompt, setCustomPrompt] = useState('');
   const [promptResult, setPromptResult] = useState(null);
 
-  // UPDATED: Enhanced generated content state
+  // Enhanced generated content state
   const [generatedContent, setGeneratedContent] = useState({
     testCases: [],
     testScenarios: [],
@@ -46,6 +76,30 @@ const HomePage = () => {
   });
   const [generatedTestCases, setGeneratedTestCases] = useState([]);
   const [errors, setErrors] = useState({});
+
+  // 🔧 FLEXIBLE: Updated API call function
+  const makeApiCall = async (endpoint, options = {}) => {
+    const url = `${BACKEND_URL}${endpoint}`;
+    console.log(`📡 Making API call to: ${url}`);
+    
+    const defaultOptions = {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+      },
+      ...options
+    };
+
+    try {
+      const response = await fetch(url, defaultOptions);
+      console.log(`📊 API response from ${endpoint}: ${response.status}`);
+      return response;
+    } catch (error) {
+      console.error(`❌ API call failed for ${endpoint}:`, error);
+      throw error;
+    }
+  };
 
   // Check Google Sheets connection status on component mount
   useEffect(() => {
@@ -68,9 +122,7 @@ const HomePage = () => {
 
   const checkConnectionStatus = async () => {
     try {
-      const response = await fetch('https://test-gen-backend.onrender.com/api/sheets/status', {
-        credentials: 'include'
-      });
+      const response = await makeApiCall('/api/sheets/status');
 
       if (response.ok) {
         const data = await response.json();
@@ -78,53 +130,53 @@ const HomePage = () => {
         if (data.connected && data.spreadsheets) {
           setSpreadsheets(data.spreadsheets);
         }
+        console.log('✅ Connection status checked:', data.connected);
       }
     } catch (error) {
-      console.error('Error checking connection status:', error);
+      console.error('❌ Error checking connection status:', error);
     }
   };
 
   const loadAvailableSheets = async () => {
     try {
-      const response = await fetch(`https://test-gen-backend.onrender.com/api/sheets/sheets?spreadsheetId=${selectedSpreadsheet.id}`, {
-        credentials: 'include'
-      });
+      const response = await makeApiCall(`/api/sheets/sheets?spreadsheetId=${selectedSpreadsheet.id}`);
 
       if (response.ok) {
         const data = await response.json();
         setAvailableSheets(data.sheets);
+        console.log('✅ Loaded available sheets:', data.sheets.length);
       }
     } catch (error) {
-      console.error('Error loading sheets:', error);
+      console.error('❌ Error loading sheets:', error);
     }
   };
 
   const loadExistingTestCases = async () => {
     try {
-      const response = await fetch(`https://test-gen-backend.onrender.com/api/sheets/test-cases?spreadsheetId=${selectedSpreadsheet.id}&sheetName=${encodeURIComponent(selectedSheet)}`, {
-        credentials: 'include'
-      });
+      const response = await makeApiCall(`/api/sheets/test-cases?spreadsheetId=${selectedSpreadsheet.id}&sheetName=${encodeURIComponent(selectedSheet)}`);
 
       if (response.ok) {
         const data = await response.json();
         setExistingTestCases(data.testCases);
+        console.log('✅ Loaded existing test cases:', data.testCases.length);
       }
     } catch (error) {
-      console.error('Error loading test cases:', error);
+      console.error('❌ Error loading test cases:', error);
     }
   };
 
   const handleGoogleSheetsConnect = async () => {
     setIsLoading(true);
     setConnectionStatus('Connecting to Google Sheets...');
+    console.log('🔗 Initiating Google Sheets connection...');
 
     try {
-      const response = await fetch('https://test-gen-backend.onrender.com/api/sheets/auth-url', {
-        credentials: 'include'
-      });
+      const response = await makeApiCall('/api/sheets/auth-url');
 
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Got auth URL, opening popup...');
+        
         const popup = window.open(
           data.authUrl,
           'google-sheets-auth',
@@ -134,6 +186,7 @@ const HomePage = () => {
         const checkClosed = setInterval(() => {
           if (popup.closed) {
             clearInterval(checkClosed);
+            console.log('🔄 Popup closed, checking connection status...');
             setTimeout(() => {
               checkConnectionStatus();
               setIsLoading(false);
@@ -145,7 +198,7 @@ const HomePage = () => {
         throw new Error('Failed to get authorization URL');
       }
     } catch (error) {
-      console.error('Error connecting to Google Sheets:', error);
+      console.error('❌ Error connecting to Google Sheets:', error);
       setConnectionStatus('Failed to connect to Google Sheets');
       setIsLoading(false);
     }
@@ -166,7 +219,7 @@ const HomePage = () => {
     }
   };
 
-  // UPDATED: Enhanced validation with generation options
+  // Enhanced validation with generation options
   const validateForm = () => {
     const newErrors = {};
 
@@ -194,7 +247,7 @@ const HomePage = () => {
     return newErrors;
   };
 
-  // FIXED: Updated generation function with correct endpoint
+  // Updated generation function with flexible API call
   const generateTestCases = async () => {
     const validationErrors = validateForm();
     if (Object.keys(validationErrors).length > 0) {
@@ -204,15 +257,11 @@ const HomePage = () => {
 
     setIsGenerating(true);
     setErrors({});
+    console.log('🚀 Starting test case generation...');
 
     try {
-      // FIXED: Updated to use the new endpoint
-      const response = await fetch('https://test-gen-backend.onrender.com/api/sheets/generate', {
+      const response = await makeApiCall('/api/sheets/generate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
         body: JSON.stringify({
           module: testCaseForm.module,
           summary: testCaseForm.summary,
@@ -231,6 +280,7 @@ const HomePage = () => {
       }
 
       const data = await response.json();
+      console.log('✅ Generation successful:', data);
       
       // Update generated content state
       setGeneratedContent({
@@ -274,7 +324,7 @@ const HomePage = () => {
       alert(successMessage);
 
     } catch (error) {
-      console.error('Error generating content:', error);
+      console.error('❌ Error generating content:', error);
       alert('Failed to generate content: ' + error.message);
     } finally {
       setIsGenerating(false);
@@ -288,14 +338,11 @@ const HomePage = () => {
     }
 
     setIsAnalyzing(true);
+    console.log('🔍 Starting test case analysis...');
 
     try {
-      const response = await fetch('https://test-gen-backend.onrender.com/api/sheets/analyze', {
+      const response = await makeApiCall('/api/sheets/analyze', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
         body: JSON.stringify({
           spreadsheetId: selectedSpreadsheet.id,
           sheetName: selectedSheet,
@@ -310,9 +357,10 @@ const HomePage = () => {
 
       const data = await response.json();
       setAnalysisResult(data.analysis);
+      console.log('✅ Analysis completed');
 
     } catch (error) {
-      console.error('Error analyzing test cases:', error);
+      console.error('❌ Error analyzing test cases:', error);
       alert('Failed to analyze test cases: ' + error.message);
     } finally {
       setIsAnalyzing(false);
@@ -331,14 +379,11 @@ const HomePage = () => {
     }
 
     setIsModifying(true);
+    console.log('✏️ Starting test case modification...');
 
     try {
-      const response = await fetch('https://test-gen-backend.onrender.com/api/sheets/modify', {
+      const response = await makeApiCall('/api/sheets/modify', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
         body: JSON.stringify({
           spreadsheetId: selectedSpreadsheet.id,
           sheetName: selectedSheet,
@@ -359,9 +404,10 @@ const HomePage = () => {
       await loadExistingTestCases();
 
       alert(`Successfully modified test cases: ${data.summary}`);
+      console.log('✅ Modification completed');
 
     } catch (error) {
-      console.error('Error modifying test cases:', error);
+      console.error('❌ Error modifying test cases:', error);
       alert('Failed to modify test cases: ' + error.message);
     } finally {
       setIsModifying(false);
@@ -381,14 +427,11 @@ const HomePage = () => {
 
     setIsProcessingPrompt(true);
     setPromptResult(null);
+    console.log('🧠 Processing custom arrangement prompt...');
 
     try {
-      const response = await fetch('https://test-gen-backend.onrender.com/api/sheets/custom-prompt', {
+      const response = await makeApiCall('/api/sheets/custom-prompt', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
         body: JSON.stringify({
           spreadsheetId: selectedSpreadsheet.id,
           sheetName: selectedSheet,
@@ -408,12 +451,32 @@ const HomePage = () => {
       await loadExistingTestCases();
 
       alert(`Successfully arranged test cases: ${data.summary}`);
+      console.log('✅ Custom prompt processing completed');
 
     } catch (error) {
-      console.error('Error processing custom prompt:', error);
+      console.error('❌ Error processing custom prompt:', error);
       alert('Failed to process custom prompt: ' + error.message);
     } finally {
       setIsProcessingPrompt(false);
+    }
+  };
+
+  // Debug function to test API connectivity
+  const testApiConnection = async () => {
+    console.log('🧪 Testing API connection...');
+    try {
+      const response = await makeApiCall('/health');
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ API connection test successful:', data);
+        alert('API connection successful! ✅');
+      } else {
+        console.log('❌ API connection test failed:', response.status);
+        alert(`API connection failed: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('❌ API connection test error:', error);
+      alert(`API connection error: ${error.message}`);
     }
   };
 
@@ -463,6 +526,7 @@ const HomePage = () => {
       ]
     }
   ];
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
