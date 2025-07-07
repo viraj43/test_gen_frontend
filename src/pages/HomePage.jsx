@@ -1,31 +1,25 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 const HomePage = () => {
-  const { user, API_BASE_URL } = useAuth(); // Get API URL from AuthContext
+  const { user, API_BASE_URL } = useAuth();
   
-  // 🔧 FLEXIBLE: Use the same API URL logic as AuthContext
   const getApiUrl = () => {
     const hostname = window.location.hostname;
     
-    // If we're on localhost or local network, use local backend
     if (hostname === 'localhost' || 
         hostname === '127.0.0.1' || 
         hostname.startsWith('192.168.') ||
         hostname.startsWith('10.') ||
         hostname.startsWith('172.')) {
-      return 'http://localhost:3000'; // Your local backend
+      return 'http://localhost:3000';
     }
     
-    // If we're on the production domain, use production backend
     return 'https://test-gen-backend.onrender.com';
   };
 
-  // Use API URL from AuthContext if available, otherwise determine it
   const BACKEND_URL = API_BASE_URL || getApiUrl();
 
-  // Add debug logging
   useEffect(() => {
     console.log('🏠 HomePage initialized');
     console.log('🌐 Frontend URL:', window.location.origin);
@@ -44,17 +38,20 @@ const HomePage = () => {
   const [spreadsheets, setSpreadsheets] = useState([]);
   const [availableSheets, setAvailableSheets] = useState([]);
   const [selectedSheet, setSelectedSheet] = useState('');
-  const [activeTab, setActiveTab] = useState('generate'); // 'generate', 'analyze', 'modify', 'arrange'
+  const [activeTab, setActiveTab] = useState('generate');
 
-  // Enhanced form data for test case generation with options
+  // Enhanced form data with separate sheet selection
   const [testCaseForm, setTestCaseForm] = useState({
     module: '',
     summary: '',
     acceptanceCriteria: '',
-    generateTestCases: true,      // Default to generating test cases
-    generateTestScenarios: true,  // Default to generating scenarios
-    testCasesCount: 20,          // Default number of test cases
-    testScenariosCount: 10       // Default number of scenarios
+    generateTestCases: true,
+    generateTestScenarios: true,
+    testCasesCount: 20,
+    testScenariosCount: 10,
+    // NEW: Separate sheet selection options
+    testCasesSheetName: '',      // Empty = create new sheet
+    testScenariosSheetName: ''   // Empty = create new sheet
   });
 
   // Analysis and modification states
@@ -77,7 +74,6 @@ const HomePage = () => {
   const [generatedTestCases, setGeneratedTestCases] = useState([]);
   const [errors, setErrors] = useState({});
 
-  // 🔧 FLEXIBLE: Updated API call function
   const makeApiCall = async (endpoint, options = {}) => {
     const url = `${BACKEND_URL}${endpoint}`;
     console.log(`📡 Making API call to: ${url}`);
@@ -247,7 +243,7 @@ const HomePage = () => {
     return newErrors;
   };
 
-  // Updated generation function with flexible API call
+  // Updated generation function with sheet selection
   const generateTestCases = async () => {
     const validationErrors = validateForm();
     if (Object.keys(validationErrors).length > 0) {
@@ -270,7 +266,10 @@ const HomePage = () => {
           generateTestCases: testCaseForm.generateTestCases,
           generateTestScenarios: testCaseForm.generateTestScenarios,
           testCasesCount: testCaseForm.testCasesCount,
-          testScenariosCount: testCaseForm.testScenariosCount
+          testScenariosCount: testCaseForm.testScenariosCount,
+          // NEW: Include sheet names for appending
+          testCasesSheetName: testCaseForm.testCasesSheetName || null,
+          testScenariosSheetName: testCaseForm.testScenariosSheetName || null
         })
       });
 
@@ -303,25 +302,13 @@ const HomePage = () => {
         generateTestCases: true,
         generateTestScenarios: true,
         testCasesCount: 20,
-        testScenariosCount: 10
+        testScenariosCount: 10,
+        testCasesSheetName: '',
+        testScenariosSheetName: ''
       });
 
-      // Show success message
-      let successMessage = 'Successfully generated ';
-      const parts = [];
-      
-      if (data.testCases && data.testCases.length > 0) {
-        parts.push(`${data.testCases.length} test cases`);
-      }
-      
-      if (data.testScenarios && data.testScenarios.length > 0) {
-        parts.push(`${data.testScenarios.length} test scenarios`);
-      }
-      
-      successMessage += parts.join(' and ');
-      successMessage += ' and added to your spreadsheet!';
-      
-      alert(successMessage);
+      // Show success message with action details
+      alert(data.message);
 
     } catch (error) {
       console.error('❌ Error generating content:', error);
@@ -331,6 +318,7 @@ const HomePage = () => {
     }
   };
 
+  // [Previous functions remain the same: analyzeTestCases, modifyTestCases, processCustomPrompt]
   const analyzeTestCases = async () => {
     if (!selectedSheet) {
       alert('Please select a sheet first');
@@ -461,25 +449,6 @@ const HomePage = () => {
     }
   };
 
-  // Debug function to test API connectivity
-  const testApiConnection = async () => {
-    console.log('🧪 Testing API connection...');
-    try {
-      const response = await makeApiCall('/health');
-      if (response.ok) {
-        const data = await response.json();
-        console.log('✅ API connection test successful:', data);
-        alert('API connection successful! ✅');
-      } else {
-        console.log('❌ API connection test failed:', response.status);
-        alert(`API connection failed: ${response.status}`);
-      }
-    } catch (error) {
-      console.error('❌ API connection test error:', error);
-      alert(`API connection error: ${error.message}`);
-    }
-  };
-
   const quickModificationPrompts = [
     "Change PC_1, PC_2, PC_3 test case type to Negative",
     "Update all test cases with status 'Not Tested' to 'In Progress'", 
@@ -526,7 +495,6 @@ const HomePage = () => {
       ]
     }
   ];
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
@@ -628,7 +596,7 @@ const HomePage = () => {
               {/* Sheet Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Sheet
+                  Select Sheet (for Analysis/Modify/Arrange)
                 </label>
                 <select
                   value={selectedSheet}
@@ -693,7 +661,7 @@ const HomePage = () => {
             </div>
 
             <div className="p-6">
-              {/* Generate Tab with Options */}
+              {/* Generate Tab with Enhanced Sheet Selection */}
               {activeTab === 'generate' && (
                 <div className="space-y-6">
                   <h2 className="text-xl font-semibold text-gray-900 flex items-center">
@@ -703,12 +671,12 @@ const HomePage = () => {
                     Generate Test Content
                   </h2>
 
-                  {/* Generation Options */}
+                  {/* Generation Options with Sheet Selection */}
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-indigo-200 rounded-lg p-4">
                     <h3 className="text-lg font-medium text-indigo-900 mb-3">What would you like to generate?</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       
-                      {/* Test Cases Option */}
+                      {/* Test Cases Option with Sheet Selection */}
                       <div className="bg-white border border-indigo-200 rounded-lg p-4">
                         <div className="flex items-center mb-3">
                           <input
@@ -729,29 +697,58 @@ const HomePage = () => {
                           Detailed test cases with steps, expected results, and execution details
                         </p>
                         {testCaseForm.generateTestCases && (
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">
-                              Number of test cases
-                            </label>
-                            <select
-                              value={testCaseForm.testCasesCount}
-                              onChange={(e) => setTestCaseForm(prev => ({
-                                ...prev,
-                                testCasesCount: parseInt(e.target.value)
-                              }))}
-                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500"
-                            >
-                              <option value={10}>10 Test Cases</option>
-                              <option value={15}>15 Test Cases</option>
-                              <option value={20}>20 Test Cases</option>
-                              <option value={25}>25 Test Cases</option>
-                              <option value={30}>30 Test Cases</option>
-                            </select>
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                Number of test cases
+                              </label>
+                              <select
+                                value={testCaseForm.testCasesCount}
+                                onChange={(e) => setTestCaseForm(prev => ({
+                                  ...prev,
+                                  testCasesCount: parseInt(e.target.value)
+                                }))}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500"
+                              >
+                                <option value={10}>10 Test Cases</option>
+                                <option value={15}>15 Test Cases</option>
+                                <option value={20}>20 Test Cases</option>
+                                <option value={25}>25 Test Cases</option>
+                                <option value={30}>30 Test Cases</option>
+                              </select>
+                            </div>
+                            {/* NEW: Test Cases Sheet Selection */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                📊 Target Sheet (Optional)
+                              </label>
+                              <select
+                                value={testCaseForm.testCasesSheetName}
+                                onChange={(e) => setTestCaseForm(prev => ({
+                                  ...prev,
+                                  testCasesSheetName: e.target.value
+                                }))}
+                                disabled={!selectedSpreadsheet}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+                              >
+                                <option value="">🆕 Create New Sheet</option>
+                                {availableSheets.map((sheet) => (
+                                  <option key={sheet.id} value={sheet.name}>
+                                    ➕ Append to "{sheet.name}"
+                                  </option>
+                                ))}
+                              </select>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {testCaseForm.testCasesSheetName 
+                                  ? `Will append to existing sheet "${testCaseForm.testCasesSheetName}"` 
+                                  : 'Will create a new sheet with timestamp'}
+                              </p>
+                            </div>
                           </div>
                         )}
                       </div>
 
-                      {/* Test Scenarios Option */}
+                      {/* Test Scenarios Option with Sheet Selection */}
                       <div className="bg-white border border-indigo-200 rounded-lg p-4">
                         <div className="flex items-center mb-3">
                           <input
@@ -772,24 +769,53 @@ const HomePage = () => {
                           High-level scenarios covering complete user workflows and business processes
                         </p>
                         {testCaseForm.generateTestScenarios && (
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">
-                              Number of scenarios
-                            </label>
-                            <select
-                              value={testCaseForm.testScenariosCount}
-                              onChange={(e) => setTestCaseForm(prev => ({
-                                ...prev,
-                                testScenariosCount: parseInt(e.target.value)
-                              }))}
-                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500"
-                            >
-                              <option value={5}>5 Test Scenarios</option>
-                              <option value={8}>8 Test Scenarios</option>
-                              <option value={10}>10 Test Scenarios</option>
-                              <option value={15}>15 Test Scenarios</option>
-                              <option value={20}>20 Test Scenarios</option>
-                            </select>
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                Number of scenarios
+                              </label>
+                              <select
+                                value={testCaseForm.testScenariosCount}
+                                onChange={(e) => setTestCaseForm(prev => ({
+                                  ...prev,
+                                  testScenariosCount: parseInt(e.target.value)
+                                }))}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500"
+                              >
+                                <option value={5}>5 Test Scenarios</option>
+                                <option value={8}>8 Test Scenarios</option>
+                                <option value={10}>10 Test Scenarios</option>
+                                <option value={15}>15 Test Scenarios</option>
+                                <option value={20}>20 Test Scenarios</option>
+                              </select>
+                            </div>
+                            {/* NEW: Test Scenarios Sheet Selection */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                📊 Target Sheet (Optional)
+                              </label>
+                              <select
+                                value={testCaseForm.testScenariosSheetName}
+                                onChange={(e) => setTestCaseForm(prev => ({
+                                  ...prev,
+                                  testScenariosSheetName: e.target.value
+                                }))}
+                                disabled={!selectedSpreadsheet}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+                              >
+                                <option value="">🆕 Create New Sheet</option>
+                                {availableSheets.map((sheet) => (
+                                  <option key={sheet.id} value={sheet.name}>
+                                    ➕ Append to "{sheet.name}"
+                                  </option>
+                                ))}
+                              </select>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {testCaseForm.testScenariosSheetName 
+                                  ? `Will append to existing sheet "${testCaseForm.testScenariosSheetName}"` 
+                                  : 'Will create a new sheet with timestamp'}
+                              </p>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -902,19 +928,15 @@ const HomePage = () => {
                         {testCaseForm.generateTestCases && (
                           <div className="flex items-center">
                             <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                            {testCaseForm.testCasesCount} detailed test cases will be generated
+                            {testCaseForm.testCasesCount} test cases will be {testCaseForm.testCasesSheetName ? `appended to "${testCaseForm.testCasesSheetName}"` : 'created in a new sheet'}
                           </div>
                         )}
                         {testCaseForm.generateTestScenarios && (
                           <div className="flex items-center">
                             <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                            {testCaseForm.testScenariosCount} high-level test scenarios will be generated
+                            {testCaseForm.testScenariosCount} test scenarios will be {testCaseForm.testScenariosSheetName ? `appended to "${testCaseForm.testScenariosSheetName}"` : 'created in a new sheet'}
                           </div>
                         )}
-                        <div className="flex items-center">
-                          <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
-                          Content will be saved to separate sheets in your selected spreadsheet
-                        </div>
                       </div>
                     </div>
                   )}
@@ -1219,7 +1241,7 @@ const HomePage = () => {
               <svg className="w-6 h-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Generated Content
+              Generated Content Results
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1243,9 +1265,18 @@ const HomePage = () => {
                         </>
                       )}
                     </h3>
-                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
-                      {sheet.count} items
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                        {sheet.count} items
+                      </span>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        sheet.action === 'appended' 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : 'bg-purple-100 text-purple-800'
+                      }`}>
+                        {sheet.action === 'appended' ? '➕ Appended' : '🆕 Created'}
+                      </span>
+                    </div>
                   </div>
                   <h4 className="text-sm font-medium text-gray-800 mb-2 truncate">
                     {sheet.name}
@@ -1255,6 +1286,11 @@ const HomePage = () => {
                       ? 'Detailed test cases with steps and expected results' 
                       : 'High-level scenarios covering complete workflows'}
                   </p>
+                  {sheet.action === 'appended' && (
+                    <p className="text-xs text-blue-600 mt-1 font-medium">
+                      Content added to existing sheet
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
@@ -1268,7 +1304,7 @@ const HomePage = () => {
               <svg className="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
-              Existing Test Cases ({existingTestCases.length})
+              Existing Test Cases in "{selectedSheet}" ({existingTestCases.length})
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
