@@ -3,18 +3,18 @@ import { useAuth } from '../context/AuthContext';
 
 const HomePage = () => {
   const { user, API_BASE_URL } = useAuth();
-  
+
   const getApiUrl = () => {
     const hostname = window.location.hostname;
-    
-    if (hostname === 'localhost' || 
-        hostname === '127.0.0.1' || 
-        hostname.startsWith('192.168.') ||
-        hostname.startsWith('10.') ||
-        hostname.startsWith('172.')) {
+
+    if (hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname.startsWith('192.168.') ||
+      hostname.startsWith('10.') ||
+      hostname.startsWith('172.')) {
       return 'http://localhost:3000';
     }
-    
+
     return 'https://test-gen-backend.onrender.com';
   };
 
@@ -29,6 +29,7 @@ const HomePage = () => {
 
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isModifying, setIsModifying] = useState(false);
@@ -77,7 +78,7 @@ const HomePage = () => {
   const makeApiCall = async (endpoint, options = {}) => {
     const url = `${BACKEND_URL}${endpoint}`;
     console.log(`📡 Making API call to: ${url}`);
-    
+
     const defaultOptions = {
       credentials: 'include',
       headers: {
@@ -116,6 +117,7 @@ const HomePage = () => {
     }
   }, [selectedSheet, selectedSpreadsheet]);
 
+  // UPDATED: Use OAuth controller endpoints
   const checkConnectionStatus = async () => {
     try {
       const response = await makeApiCall('/api/sheets/status');
@@ -133,9 +135,10 @@ const HomePage = () => {
     }
   };
 
+  // UPDATED: Use OAuth controller endpoints
   const loadAvailableSheets = async () => {
     try {
-      const response = await makeApiCall(`/api/sheets/sheets?spreadsheetId=${selectedSpreadsheet.id}`);
+      const response = await makeApiCall(`/api/sheets/list?spreadsheetId=${selectedSpreadsheet.id}`);
 
       if (response.ok) {
         const data = await response.json();
@@ -147,6 +150,7 @@ const HomePage = () => {
     }
   };
 
+  // UPDATED: Use Sheets controller endpoints
   const loadExistingTestCases = async () => {
     try {
       const response = await makeApiCall(`/api/sheets/test-cases?spreadsheetId=${selectedSpreadsheet.id}&sheetName=${encodeURIComponent(selectedSheet)}`);
@@ -161,6 +165,7 @@ const HomePage = () => {
     }
   };
 
+  // UPDATED: Use OAuth controller endpoints
   const handleGoogleSheetsConnect = async () => {
     setIsLoading(true);
     setConnectionStatus('Connecting to Google Sheets...');
@@ -172,7 +177,7 @@ const HomePage = () => {
       if (response.ok) {
         const data = await response.json();
         console.log('✅ Got auth URL, opening popup...');
-        
+
         const popup = window.open(
           data.authUrl,
           'google-sheets-auth',
@@ -197,6 +202,59 @@ const HomePage = () => {
       console.error('❌ Error connecting to Google Sheets:', error);
       setConnectionStatus('Failed to connect to Google Sheets');
       setIsLoading(false);
+    }
+  };
+
+  // NEW: Disconnect from Google Sheets
+  const handleGoogleSheetsDisconnect = async () => {
+    if (!window.confirm('Are you sure you want to disconnect from Google Sheets? This will remove access to your spreadsheets.')) {
+      return;
+    }
+
+    setIsDisconnecting(true);
+    setConnectionStatus('Disconnecting from Google Sheets...');
+    console.log('🔗 Disconnecting from Google Sheets...');
+
+    try {
+      const response = await makeApiCall('/api/sheets/disconnect', {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Disconnected successfully:', data);
+
+        // Reset all states
+        setIsConnected(false);
+        setSpreadsheets([]);
+        setAvailableSheets([]);
+        setSelectedSpreadsheet(null);
+        setSelectedSheet('');
+        setExistingTestCases([]);
+        setGeneratedContent({ testCases: [], testScenarios: [], createdSheets: [] });
+        setGeneratedTestCases([]);
+
+        setConnectionStatus('Successfully disconnected from Google Sheets');
+
+        // Clear status message after 3 seconds
+        setTimeout(() => {
+          setConnectionStatus('');
+        }, 3000);
+
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to disconnect');
+      }
+    } catch (error) {
+      console.error('❌ Error disconnecting from Google Sheets:', error);
+      setConnectionStatus('Failed to disconnect from Google Sheets');
+
+      // Clear error message after 5 seconds
+      setTimeout(() => {
+        setConnectionStatus('');
+      }, 5000);
+    } finally {
+      setIsDisconnecting(false);
     }
   };
 
@@ -243,7 +301,7 @@ const HomePage = () => {
     return newErrors;
   };
 
-  // Updated generation function with sheet selection
+  // UPDATED: Use Sheets controller endpoints
   const generateTestCases = async () => {
     const validationErrors = validateForm();
     if (Object.keys(validationErrors).length > 0) {
@@ -280,7 +338,7 @@ const HomePage = () => {
 
       const data = await response.json();
       console.log('✅ Generation successful:', data);
-      
+
       // Update generated content state
       setGeneratedContent({
         testCases: data.testCases || [],
@@ -318,7 +376,7 @@ const HomePage = () => {
     }
   };
 
-  // [Previous functions remain the same: analyzeTestCases, modifyTestCases, processCustomPrompt]
+  // UPDATED: Use Sheets controller endpoints
   const analyzeTestCases = async () => {
     if (!selectedSheet) {
       alert('Please select a sheet first');
@@ -355,6 +413,7 @@ const HomePage = () => {
     }
   };
 
+  // UPDATED: Use Sheets controller endpoints
   const modifyTestCases = async () => {
     if (!selectedSheet) {
       alert('Please select a sheet first');
@@ -402,6 +461,7 @@ const HomePage = () => {
     }
   };
 
+  // UPDATED: Use Sheets controller endpoints
   const processCustomPrompt = async () => {
     if (!selectedSheet) {
       alert('Please select a sheet first');
@@ -451,7 +511,7 @@ const HomePage = () => {
 
   const quickModificationPrompts = [
     "Change PC_1, PC_2, PC_3 test case type to Negative",
-    "Update all test cases with status 'Not Tested' to 'In Progress'", 
+    "Update all test cases with status 'Not Tested' to 'In Progress'",
     "Add validation steps to PC_5, PC_6, PC_7",
     "Change environment of PC_10-PC_15 from 'Test' to 'Production'",
     "Delete PC_20 as it is duplicate"
@@ -522,11 +582,35 @@ const HomePage = () => {
               </svg>
               Google Sheets Integration
             </h2>
-            <div className={`px-3 py-1 rounded-full text-sm font-medium ${isConnected
-              ? 'bg-green-100 text-green-800'
-              : 'bg-red-100 text-red-800'
-              }`}>
-              {isConnected ? 'Connected' : 'Not Connected'}
+            <div className="flex items-center space-x-3">
+              <div className={`px-3 py-1 rounded-full text-sm font-medium ${isConnected
+                ? 'bg-green-100 text-green-800'
+                : 'bg-red-100 text-red-800'
+                }`}>
+                {isConnected ? 'Connected' : 'Not Connected'}
+              </div>
+              {/* NEW: Disconnect Button */}
+              {isConnected && (
+                <button
+                  onClick={handleGoogleSheetsDisconnect}
+                  disabled={isDisconnecting}
+                  className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
+                >
+                  {isDisconnecting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600 mr-1"></div>
+                      Disconnecting...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      Disconnect
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
 
@@ -562,7 +646,9 @@ const HomePage = () => {
                 )}
               </button>
               {connectionStatus && (
-                <p className="mt-2 text-sm text-gray-600">{connectionStatus}</p>
+                <p className={`mt-2 text-sm ${connectionStatus.includes('Failed') || connectionStatus.includes('Error') ? 'text-red-600' : 'text-gray-600'}`}>
+                  {connectionStatus}
+                </p>
               )}
             </div>
           ) : (
@@ -614,8 +700,16 @@ const HomePage = () => {
               </div>
             </div>
           )}
+
+          {/* Connection Status Message */}
+          {connectionStatus && isConnected && (
+            <div className={`mt-4 p-3 rounded-lg ${connectionStatus.includes('Successfully') ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+              <p className="text-sm font-medium">{connectionStatus}</p>
+            </div>
+          )}
         </div>
 
+        {/* Rest of the component remains the same... */}
         {/* Tab Navigation */}
         {isConnected && (
           <div className="bg-white rounded-xl shadow-lg mb-8">
@@ -675,7 +769,7 @@ const HomePage = () => {
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-indigo-200 rounded-lg p-4">
                     <h3 className="text-lg font-medium text-indigo-900 mb-3">What would you like to generate?</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      
+
                       {/* Test Cases Option with Sheet Selection */}
                       <div className="bg-white border border-indigo-200 rounded-lg p-4">
                         <div className="flex items-center mb-3">
@@ -739,8 +833,8 @@ const HomePage = () => {
                                 ))}
                               </select>
                               <p className="text-xs text-gray-500 mt-1">
-                                {testCaseForm.testCasesSheetName 
-                                  ? `Will append to existing sheet "${testCaseForm.testCasesSheetName}"` 
+                                {testCaseForm.testCasesSheetName
+                                  ? `Will append to existing sheet "${testCaseForm.testCasesSheetName}"`
                                   : 'Will create a new sheet with timestamp'}
                               </p>
                             </div>
@@ -811,8 +905,8 @@ const HomePage = () => {
                                 ))}
                               </select>
                               <p className="text-xs text-gray-500 mt-1">
-                                {testCaseForm.testScenariosSheetName 
-                                  ? `Will append to existing sheet "${testCaseForm.testScenariosSheetName}"` 
+                                {testCaseForm.testScenariosSheetName
+                                  ? `Will append to existing sheet "${testCaseForm.testScenariosSheetName}"`
                                   : 'Will create a new sheet with timestamp'}
                               </p>
                             </div>
@@ -913,9 +1007,9 @@ const HomePage = () => {
                         <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
-                        Generate {testCaseForm.generateTestCases && testCaseForm.generateTestScenarios ? 'Test Cases & Scenarios' : 
-                                  testCaseForm.generateTestCases ? 'Test Cases' : 
-                                  testCaseForm.generateTestScenarios ? 'Test Scenarios' : 'Content'} with AI
+                        Generate {testCaseForm.generateTestCases && testCaseForm.generateTestScenarios ? 'Test Cases & Scenarios' :
+                          testCaseForm.generateTestCases ? 'Test Cases' :
+                            testCaseForm.generateTestScenarios ? 'Test Scenarios' : 'Content'} with AI
                       </>
                     )}
                   </button>
@@ -1269,11 +1363,10 @@ const HomePage = () => {
                       <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
                         {sheet.count} items
                       </span>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        sheet.action === 'appended' 
-                          ? 'bg-blue-100 text-blue-800' 
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${sheet.action === 'appended'
+                          ? 'bg-blue-100 text-blue-800'
                           : 'bg-purple-100 text-purple-800'
-                      }`}>
+                        }`}>
                         {sheet.action === 'appended' ? '➕ Appended' : '🆕 Created'}
                       </span>
                     </div>
@@ -1282,8 +1375,8 @@ const HomePage = () => {
                     {sheet.name}
                   </h4>
                   <p className="text-xs text-gray-600">
-                    {sheet.type === 'testCases' 
-                      ? 'Detailed test cases with steps and expected results' 
+                    {sheet.type === 'testCases'
+                      ? 'Detailed test cases with steps and expected results'
                       : 'High-level scenarios covering complete workflows'}
                   </p>
                   {sheet.action === 'appended' && (
@@ -1316,12 +1409,11 @@ const HomePage = () => {
                       <span className={`px-2 py-1 rounded text-xs ${testCase.testCaseType === 'Positive' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                         {testCase.testCaseType}
                       </span>
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        testCase.status === 'Pass' ? 'bg-green-100 text-green-800' :
-                        testCase.status === 'Fail' ? 'bg-red-100 text-red-800' :
-                        testCase.status === 'Blocked' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
+                      <span className={`px-2 py-1 rounded text-xs ${testCase.status === 'Pass' ? 'bg-green-100 text-green-800' :
+                          testCase.status === 'Fail' ? 'bg-red-100 text-red-800' :
+                            testCase.status === 'Blocked' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-gray-100 text-gray-800'
+                        }`}>
                         {testCase.status}
                       </span>
                     </div>
