@@ -48,11 +48,11 @@ const HomePage = () => {
     acceptanceCriteria: '',
     generateTestCases: true,
     generateTestScenarios: true,
-    testCasesCount: 20,
-    testScenariosCount: 10,
-    // NEW: Separate sheet selection options
-    testCasesSheetName: '',      // Empty = create new sheet
-    testScenariosSheetName: ''   // Empty = create new sheet
+    testCasesLevel: 'Medium',
+    testScenariosLevel: 'Medium',
+    testCasesSheetName: '',
+    testScenariosSheetName: '',
+    fillScenarioGaps: true  // ✅ ADD THIS LINE
   });
 
   // Analysis and modification states
@@ -323,11 +323,11 @@ const HomePage = () => {
           spreadsheetId: selectedSpreadsheet.id,
           generateTestCases: testCaseForm.generateTestCases,
           generateTestScenarios: testCaseForm.generateTestScenarios,
-          testCasesCount: testCaseForm.testCasesCount,
-          testScenariosCount: testCaseForm.testScenariosCount,
-          // NEW: Include sheet names for appending
+          testCasesLevel: testCaseForm.testCasesLevel,
+          testScenariosLevel: testCaseForm.testScenariosLevel,
           testCasesSheetName: testCaseForm.testCasesSheetName || null,
-          testScenariosSheetName: testCaseForm.testScenariosSheetName || null
+          testScenariosSheetName: testCaseForm.testScenariosSheetName || null,
+          fillScenarioGaps: testCaseForm.fillScenarioGaps  // ✅ ADD THIS LINE
         })
       });
 
@@ -359,12 +359,12 @@ const HomePage = () => {
         acceptanceCriteria: '',
         generateTestCases: true,
         generateTestScenarios: true,
-        testCasesCount: 20,
-        testScenariosCount: 10,
+        testCasesLevel: 'Medium',
+        testScenariosLevel: 'Medium',
         testCasesSheetName: '',
-        testScenariosSheetName: ''
+        testScenariosSheetName: '',
+        fillScenarioGaps: true  // ✅ ADD THIS LINE
       });
-
       // Show success message with action details
       alert(data.message);
 
@@ -794,21 +794,20 @@ const HomePage = () => {
                           <div className="space-y-3">
                             <div>
                               <label className="block text-xs font-medium text-gray-700 mb-1">
-                                Number of test cases
+                                Test Coverage Level
                               </label>
                               <select
-                                value={testCaseForm.testCasesCount}
+                                value={testCaseForm.testCasesLevel}
                                 onChange={(e) => setTestCaseForm(prev => ({
                                   ...prev,
-                                  testCasesCount: parseInt(e.target.value)
+                                  testCasesLevel: e.target.value
                                 }))}
                                 className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500"
                               >
-                                <option value={10}>10 Test Cases</option>
-                                <option value={15}>15 Test Cases</option>
-                                <option value={20}>20 Test Cases</option>
-                                <option value={25}>25 Test Cases</option>
-                                <option value={30}>30 Test Cases</option>
+                                <option value="Low">🟢 Low (1-5 test cases) - Critical paths only</option>
+                                <option value="Medium">🟡 Medium (5-15 test cases) - Core functionality</option>
+                                <option value="High">🟠 High (15-25 test cases) - Comprehensive coverage</option>
+                                <option value="Detailed">🔴 Detailed (25-40 test cases) - Exhaustive testing</option>
                               </select>
                             </div>
                             {/* NEW: Test Cases Sheet Selection */}
@@ -866,21 +865,20 @@ const HomePage = () => {
                           <div className="space-y-3">
                             <div>
                               <label className="block text-xs font-medium text-gray-700 mb-1">
-                                Number of scenarios
+                                Scenario Coverage Level
                               </label>
                               <select
-                                value={testCaseForm.testScenariosCount}
+                                value={testCaseForm.testScenariosLevel}
                                 onChange={(e) => setTestCaseForm(prev => ({
                                   ...prev,
-                                  testScenariosCount: parseInt(e.target.value)
+                                  testScenariosLevel: e.target.value
                                 }))}
                                 className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500"
                               >
-                                <option value={5}>5 Test Scenarios</option>
-                                <option value={8}>8 Test Scenarios</option>
-                                <option value={10}>10 Test Scenarios</option>
-                                <option value={15}>15 Test Scenarios</option>
-                                <option value={20}>20 Test Scenarios</option>
+                                <option value="Low">🟢 Low (1-3 scenarios) - Happy path workflows</option>
+                                <option value="Medium">🟡 Medium (3-8 scenarios) - Core workflows + errors</option>
+                                <option value="High">🟠 High (8-15 scenarios) - Complete user journeys</option>
+                                <option value="Detailed">🔴 Detailed (15-25 scenarios) - All possible workflows</option>
                               </select>
                             </div>
                             {/* NEW: Test Scenarios Sheet Selection */}
@@ -910,6 +908,30 @@ const HomePage = () => {
                                   : 'Will create a new sheet with timestamp'}
                               </p>
                             </div>
+                          </div>
+
+                        )}
+                        {testCaseForm.testScenariosSheetName && (
+                          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                            <label className="flex items-start">
+                              <input
+                                type="checkbox"
+                                checked={testCaseForm.fillScenarioGaps}
+                                onChange={(e) => setTestCaseForm(prev => ({
+                                  ...prev,
+                                  fillScenarioGaps: e.target.checked
+                                }))}
+                                className="h-3 w-3 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mr-2 mt-0.5"
+                              />
+                              <div>
+                                <span className="text-xs font-medium text-blue-900">
+                                  🔍 Auto-fill gaps in existing scenarios
+                                </span>
+                                <p className="text-xs text-blue-700 mt-1">
+                                  Automatically analyze existing scenarios and add LOW-level scenarios for missing essential functionality
+                                </p>
+                              </div>
+                            </label>
                           </div>
                         )}
                       </div>
@@ -1007,9 +1029,9 @@ const HomePage = () => {
                         <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
-                        Generate {testCaseForm.generateTestCases && testCaseForm.generateTestScenarios ? 'Test Cases & Scenarios' :
-                          testCaseForm.generateTestCases ? 'Test Cases' :
-                            testCaseForm.generateTestScenarios ? 'Test Scenarios' : 'Content'} with AI
+                        Generate {testCaseForm.generateTestCases && testCaseForm.generateTestScenarios ? `${testCaseForm.testCasesLevel} Test Cases & ${testCaseForm.testScenariosLevel} Scenarios` :
+                          testCaseForm.generateTestCases ? `${testCaseForm.testCasesLevel} Level Test Cases` :
+                            testCaseForm.generateTestScenarios ? `${testCaseForm.testScenariosLevel} Level Test Scenarios` : 'Content'} with AI
                       </>
                     )}
                   </button>
@@ -1022,16 +1044,37 @@ const HomePage = () => {
                         {testCaseForm.generateTestCases && (
                           <div className="flex items-center">
                             <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                            {testCaseForm.testCasesCount} test cases will be {testCaseForm.testCasesSheetName ? `appended to "${testCaseForm.testCasesSheetName}"` : 'created in a new sheet'}
+                            {testCaseForm.testCasesLevel} level test cases will be {testCaseForm.testCasesSheetName ? `appended to "${testCaseForm.testCasesSheetName}"` : 'created in a new sheet'}
                           </div>
                         )}
                         {testCaseForm.generateTestScenarios && (
                           <div className="flex items-center">
                             <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                            {testCaseForm.testScenariosCount} test scenarios will be {testCaseForm.testScenariosSheetName ? `appended to "${testCaseForm.testScenariosSheetName}"` : 'created in a new sheet'}
+                            {testCaseForm.testScenariosLevel} level test scenarios will be {testCaseForm.testScenariosSheetName ? `appended to "${testCaseForm.testScenariosSheetName}"` : 'created in a new sheet'}
+                            {/* ✅ ADD THIS PART */}
+                            {testCaseForm.testScenariosSheetName && testCaseForm.fillScenarioGaps && (
+                              <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                                + Smart Gap-Filling
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
+
+                      {/* ✅ ADD THIS NEW SECTION */}
+                      {testCaseForm.generateTestScenarios && testCaseForm.testScenariosSheetName && testCaseForm.fillScenarioGaps && (
+                        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
+                          <div className="flex items-center">
+                            <svg className="w-4 h-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                            </svg>
+                            <span className="text-blue-900 text-sm font-medium">Smart Gap Analysis Enabled</span>
+                          </div>
+                          <p className="text-blue-800 text-xs mt-1">
+                            System will analyze existing scenarios in "{testCaseForm.testScenariosSheetName}" and automatically generate LOW-level scenarios for any missing essential functionality.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1363,9 +1406,15 @@ const HomePage = () => {
                       <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
                         {sheet.count} items
                       </span>
+                      {/* ✅ ADD THIS SECTION */}
+                      {sheet.gapsFilled && sheet.gapsFilled > 0 && (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                          +{sheet.gapsFilled} gaps filled
+                        </span>
+                      )}
                       <span className={`px-2 py-1 rounded text-xs font-medium ${sheet.action === 'appended'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-purple-100 text-purple-800'
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-purple-100 text-purple-800'
                         }`}>
                         {sheet.action === 'appended' ? '➕ Appended' : '🆕 Created'}
                       </span>
@@ -1382,6 +1431,12 @@ const HomePage = () => {
                   {sheet.action === 'appended' && (
                     <p className="text-xs text-blue-600 mt-1 font-medium">
                       Content added to existing sheet
+                    </p>
+                  )}
+                  {/* ✅ ADD THIS SECTION */}
+                  {sheet.gapsFilled && sheet.gapsFilled > 0 && (
+                    <p className="text-xs text-blue-600 mt-1 font-medium">
+                      🔍 {sheet.gapsFilled} gap-filling scenarios added automatically
                     </p>
                   )}
                 </div>
@@ -1410,9 +1465,9 @@ const HomePage = () => {
                         {testCase.testCaseType}
                       </span>
                       <span className={`px-2 py-1 rounded text-xs ${testCase.status === 'Pass' ? 'bg-green-100 text-green-800' :
-                          testCase.status === 'Fail' ? 'bg-red-100 text-red-800' :
-                            testCase.status === 'Blocked' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-gray-100 text-gray-800'
+                        testCase.status === 'Fail' ? 'bg-red-100 text-red-800' :
+                          testCase.status === 'Blocked' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-gray-100 text-gray-800'
                         }`}>
                         {testCase.status}
                       </span>
@@ -1493,7 +1548,7 @@ const HomePage = () => {
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 };
 
